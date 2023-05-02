@@ -1,7 +1,7 @@
 
 struct Message
 {
-    int size;
+    int mod;
     int data;
 };
 
