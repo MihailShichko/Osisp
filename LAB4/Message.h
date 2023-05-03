@@ -1,5 +1,6 @@
+#pragma once
 
-struct Message
+struct MessageAYE
 {
     int mod;
     int data;

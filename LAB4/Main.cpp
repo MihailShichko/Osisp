@@ -11,12 +11,12 @@
 #include <sys/msg.h>
 #include <sys/ipc.h>
 
-#include "Child.h"
+#include "ChildAYE.h"
 #include "Producer.h"
 #include "Consumer.h"
 
-std::vector<Child> producers;
-std::vector<Child> consumers;
+std::vector<ChildAYE> producers;
+std::vector<ChildAYE> consumers;
 key_t queue;
 
 sem_t items;
@@ -39,7 +39,7 @@ void show_menu()
     printf("p - create producer\nc - create consumer\nq - exit\n");
 }
 
-void kill_children(std::vector<Child> children)
+void kill_children(std::vector<ChildAYE> children)
 {
     for(int i = 0; i < children.size(); i++)
     {
@@ -52,14 +52,14 @@ void kill_children(std::vector<Child> children)
 void createProducer()
 {
     pid_t pid = fork();
-    Producer producer(pid);
+    Producer producer(pid, queue, free_space, items, mutex);
     if(pid == -1)
     {
         perror("fork");
     }
     else if(pid == 0)
     {
-        
+        producer.Process();
     }
     else
     {
@@ -90,14 +90,14 @@ void ConsumerProcess()
 void createConsumer()
 {
     pid_t pid = fork();
-    Consumer consumer(pid);
+    Consumer consumer(pid, queue, free_space, items, mutex);
     if(pid == -1)
     {
         perror("fork");
     }
     else if(pid == 0)
     {
-        
+        consumer.Process();
     }
     else
     {
