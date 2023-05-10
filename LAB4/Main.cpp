@@ -6,24 +6,29 @@
 #include <vector>
 #include <signal.h>
 #include <semaphore.h>
+#include <stdio_ext.h>
 
 #include <sys/types.h>
 #include <sys/msg.h>
 #include <sys/ipc.h>
+#include <sys/wait.h>
 
-#include "ChildAYE.h"
-#include "Producer.h"
-#include "Consumer.h"
+#include "init.h"
+#include "consumer.h"
+#include "producer.h"
 
-std::vector<ChildAYE> producers;
-std::vector<ChildAYE> consumers;
+std::vector<pid_t> producers;
+std::vector<pid_t> consumers;
 key_t queue;
 
 sem_t items;
 sem_t free_space;
 sem_t mutex;
 
-key_t create_messageQueue()
+int producer_counter = 0;
+int consumer_counter = 0;
+
+key_t createMessageQueue()
 {
     key_t queue = ftok(".", 65);
     if(queue == -1)
@@ -39,96 +44,14 @@ void show_menu()
     printf("p - create producer\nc - create consumer\nq - exit\n");
 }
 
-void kill_children(std::vector<ChildAYE> children)
-{
-    for(int i = 0; i < children.size(); i++)
-    {
-        kill(children[i].GetPid(), SIGKILL);
-    }
-
-    children.clear();
-}
-
-void createProducer()
-{
-    pid_t pid = fork();
-    Producer producer(pid, queue, free_space, items, mutex);
-    if(pid == -1)
-    {
-        perror("fork");
-    }
-    else if(pid == 0)
-    {
-        producer.Process();
-    }
-    else
-    {
-        producers.push_back(producer);
-    }
-
-}
-
-void ProducerProcess()
-{
-    sem_wait(&free_space);
-    sem_wait(&mutex);
-    //put
-    sem_post(&mutex);
-    sem_post(&items);
-}
-
-void ConsumerProcess()
-{
-    sem_wait(&items);
-    sem_wait(&mutex);
-    //get
-    sem_post(&mutex);
-    sem_post(&free_space);
-    //consume
-}
-
-void createConsumer()
-{
-    pid_t pid = fork();
-    Consumer consumer(pid, queue, free_space, items, mutex);
-    if(pid == -1)
-    {
-        perror("fork");
-    }
-    else if(pid == 0)
-    {
-        consumer.Process();
-    }
-    else
-    {
-        consumers.push_back(consumer);
-    }
-
-}
-
-void setupSemphores()
-{
-    sem_init(&free_space, 1, 5);
-    sem_init(&items, 1, 0);
-    sem_init(&mutex, 1, 1);
-    
-}
-
-void destroySemaphores()
-{
-    sem_destroy(&free_space);
-    sem_destroy(&mutex);
-    sem_destroy(&items);
-}
-
 void engine()
 {
+    char action;
+    show_menu();
     while(true)
     {
-        show_menu();
-        char action;
-        std::cin >> action;
-
+        __fpurge(stdin);
+        action = getchar();
         switch (action)
         {
             case 'p':{
@@ -140,26 +63,22 @@ void engine()
                 break;
             }
             case 'q':{
-                kill_children(producers);
-                kill_children(consumers);
-                printf("children terminated");
-                destroySemaphores();
-                exit(1);
-                break;
+                printf("Exit...");
+                exit(EXIT_SUCCESS);
             }
             default:
                 printf("Wrong option... once again:\n");
-                show_menu();
                 break;
         }
 
-        usleep(100);
     }
 }
 
+
+
 int main()
 {
-    queue = create_messageQueue();
+    createMessageQueue();
+    init();
     engine();
-
 }
